@@ -1,0 +1,7 @@
+ui init("Flux Demo");
+ui text("Hello from Flux!");
+ui text("Tab edits inputs in TUI. Press q to quit.");
+ui input("Name", "Dawid");
+ui button("OK");
+ui button("Quit");
+ui run("tui");
