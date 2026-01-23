@@ -133,6 +133,11 @@ fn run_flux(path: &str) -> ExitCode {
 
 // -------------------- FLUX COMPILE --------------------
 fn compile_script(path: &str) -> ExitCode {
+    use std::io::Write;
+    use std::process::Command;
+    use tempfile::TempDir;
+
+    // Read source
     let src = match fs::read_to_string(path) {
         Ok(s) => s,
         Err(_) => { eprintln!("Could not read file: {path}"); return ExitCode::from(3); }
@@ -141,16 +146,63 @@ fn compile_script(path: &str) -> ExitCode {
     let c_filename = CString::new(path).unwrap();
     let c_source = CString::new(src).unwrap();
 
+    // Compile Flux program
     let prog = unsafe { flux_compile(c_filename.as_ptr(), c_source.as_ptr()) };
-    if prog.is_null() { eprintln!("[FLUX]: Compilation failed!"); return ExitCode::from(2); }
+    if prog.is_null() {
+        eprintln!("[FLUX]: Compilation failed!");
+        return ExitCode::from(2);
+    }
 
-    let out_exe = Path::new(path).with_extension("exe");
-    std::fs::write(&out_exe, b"placeholder binary content").expect("Failed to write output exe");
-    println!("[FLUX]: Compiled {path} -> {:?}", out_exe);
+    // Serialize program pointer to binary (placeholder for real serialization)
+    // Normally you would use a proper format; here we just treat it as opaque bytes
+    let prog_bytes: Vec<u8> = vec![0u8; 1]; // TODO: replace with actual serialized program bytes
+
+    // Create temporary Rust project
+    let tmp_dir = TempDir::new().expect("Failed to create temp dir");
+    let out_dir = tmp_dir.path();
+    let main_rs = out_dir.join("main.rs");
+
+    let exe_name = Path::new(path).with_extension("exe");
+
+    // Write Rust wrapper that embeds program bytes and calls flux_run
+    let wrapper_code = format!(
+r#"use std::os::raw::c_char;
+use std::ffi::CStr;
+#[repr(C)] struct FluxProgram;
+extern "C" {{
+    fn flux_run(prog: *mut FluxProgram) -> i32;
+}}
+fn main() {{
+    // Program bytes embedded
+    let _prog_data: &[u8] = &{:?};
+    // TODO: convert _prog_data back to FluxProgram pointer
+    let prog_ptr: *mut FluxProgram = std::ptr::null_mut();
+    let ok = unsafe {{ flux_run(prog_ptr) }};
+    std::process::exit(if ok == 1 {{ 0 }} else {{ 1 }});
+}}"#, prog_bytes);
+
+    fs::write(&main_rs, wrapper_code).expect("Failed to write main.rs");
+
+    // Compile wrapper to standalone exe
+    let status = Command::new("rustc")
+        .args(["--crate-type", "bin"])
+        .arg(main_rs.to_str().unwrap())
+        .arg("-o")
+        .arg(exe_name.to_str().unwrap())
+        .status()
+        .expect("Failed to run rustc");
 
     unsafe { flux_free_program(prog) };
-    ExitCode::SUCCESS
+
+    if status.success() {
+        println!("[FLUX]: Compiled {path} -> {:?}", exe_name);
+        ExitCode::SUCCESS
+    } else {
+        eprintln!("[FLUX]: Failed to build standalone executable");
+        ExitCode::from(1)
+    }
 }
+
 
 // -------------------- FLUX UPDATE --------------------
 fn check_update() -> ExitCode {
