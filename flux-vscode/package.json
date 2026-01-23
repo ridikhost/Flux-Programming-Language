@@ -1,6 +1,6 @@
 {
   "name": "flux-lang",
-  "displayName": "Flux Language Support",
+  "displayName": "Flux Programming Language",
   "description": "Syntax highlighting + diagnostics for Flux (.fl) - v1.0.0",
   "version": "0.0.1",
   "publisher": "DavidTheD3veloper",
