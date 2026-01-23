@@ -1,8 +1,8 @@
 {
   "name": "flux-lang",
   "displayName": "Flux Programming Language",
-  "description": "Syntax highlighting + diagnostics for Flux (.fl) - v1.0.0",
-  "version": "0.0.1",
+  "description": "Flux language support (v1.0.1): syntax highlighting + basic diagnostics",
+  "version": "0.0.2",
   "publisher": "DavidTheD3veloper",
   "engines": {
     "vscode": "^1.85.0"
@@ -10,7 +10,7 @@
   "categories": [
     "Programming Languages"
   ],
-  "icon": "extension/icon.png",
+  "icon": "icon.png",
   "activationEvents": [
     "onLanguage:flux"
   ],

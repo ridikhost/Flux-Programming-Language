@@ -10,22 +10,47 @@ typedef enum {
   TOK_NUMBER,
   TOK_STRING,
 
+  // keywords
   TOK_LET,
   TOK_PRINT,
+  TOK_IF,
+  TOK_ELSE,
+  TOK_WHILE,
+  TOK_TRUE,
+  TOK_FALSE,
+  TOK_NIL,
+  TOK_AND,
+  TOK_OR,
 
+  // ui keywords
   TOK_UI,
   TOK_INIT,
   TOK_TEXT,
   TOK_BUTTON,
   TOK_INPUT,
   TOK_RUN,
+  TOK_CLEAR,
+  TOK_TITLE,
+  TOK_SELECT,
+  TOK_CHECKBOX,
 
+  // punctuation / operators
   TOK_LPAREN, TOK_RPAREN,
+  TOK_LBRACE, TOK_RBRACE,
   TOK_SEMI,
-  TOK_EQUAL,
+  TOK_COMMA,
+  TOK_DOT,
 
-  TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH,
-  TOK_COMMA
+  TOK_EQUAL,
+  TOK_EQUAL_EQUAL,
+  TOK_BANG,
+  TOK_BANG_EQUAL,
+  TOK_LESS,
+  TOK_LESS_EQUAL,
+  TOK_GREATER,
+  TOK_GREATER_EQUAL,
+
+  TOK_PLUS, TOK_MINUS, TOK_STAR, TOK_SLASH
 } TokenType;
 
 typedef struct {

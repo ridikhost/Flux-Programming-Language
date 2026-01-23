@@ -9,13 +9,18 @@
 typedef enum {
   UI_ITEM_TEXT = 0,
   UI_ITEM_BUTTON,
-  UI_ITEM_INPUT
+  UI_ITEM_INPUT,
+  UI_ITEM_SELECT,
+  UI_ITEM_CHECKBOX
 } UiItemKind;
 
 typedef struct {
   UiItemKind kind;
   char* a;   // text or label
-  char* b;   // for input value (owned), else NULL
+  char* b;   // extra payload (owned), meaning depends on kind
+             // INPUT: value
+             // SELECT: options joined by '\n'
+             // CHECKBOX: "true" / "false"
 } UiItem;
 
 typedef struct {
@@ -29,9 +34,12 @@ typedef struct {
 
 void ui_state_init(UiState* u);
 void ui_state_free(UiState* u);
+void ui_state_clear(UiState* u);
 void ui_state_add_text(UiState* u, const char* text);
 void ui_state_add_button(UiState* u, const char* label);
 void ui_state_add_input(UiState* u, const char* label, const char* value);
+void ui_state_add_select(UiState* u, const char* label, const char* options_joined);
+void ui_state_add_checkbox(UiState* u, const char* label, bool checked);
 void ui_state_set_title(UiState* u, const char* title);
 void ui_state_request_run(UiState* u, const char* backend);
 
@@ -40,21 +48,23 @@ char* ui_state_to_json(const UiState* u);
 
 // ----------------- Environment / Interpreter -----------------
 
-typedef struct {
+typedef struct Env {
+  struct Env* parent;
   char** names;
   Value* values;
   int count;
   int cap;
 } Env;
 
-void env_init(Env* e);
+Env* env_new(Env* parent);
 void env_free(Env* e);
-bool env_set(Env* e, const char* name, Value v);     // takes ownership of v
-bool env_get(Env* e, const char* name, Value* out);  // copies out (deep for strings)
+bool env_define(Env* e, const char* name, Value v);   // define in current env (takes ownership)
+bool env_assign(Env* e, const char* name, Value v);   // assign existing in chain (takes ownership), false if undefined
+bool env_get(Env* e, const char* name, Value* out);   // copies out (deep for strings)
 
 typedef struct {
   ErrorCtx* err;
-  Env env;
+  Env* env;   // current environment (owned chain)
   UiState* ui; // borrowed
 } Interpreter;
 

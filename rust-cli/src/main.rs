@@ -38,7 +38,14 @@ enum UiItem {
 
     #[serde(rename = "input")]
     Input { label: String, value: String },
+
+    #[serde(rename = "select")]
+    Select { label: String, options: Vec<String> },
+
+    #[serde(rename = "checkbox")]
+    Checkbox { label: String, checked: bool },
 }
+
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
@@ -49,7 +56,7 @@ fn main() -> ExitCode {
         return ExitCode::from(3);
     }
     if args[1] == "--version" {
-        println!("Flux 1.0.0 (rust-cli + c-engine + ui)");
+        println!("Flux 1.0.1 (rust-cli + c-engine + ui)");
         return ExitCode::SUCCESS;
     }
     if args[1] != "run" || args.len() < 3 {
@@ -133,13 +140,53 @@ fn main() -> ExitCode {
 
 // -------------------- TUI --------------------
 
+
 fn run_tui(doc: UiDoc) -> Result<(), Box<dyn std::error::Error>> {
     use crossterm::{
-        event::{self, Event, KeyCode, KeyEventKind},
+        event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
         execute,
         terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
     };
     use ratatui::{prelude::*, widgets::*};
+
+    // State for interactive widgets
+    #[derive(Clone)]
+    enum ItemState {
+        Static,
+        Button,
+        Input { value: String },
+        Select { options: Vec<String>, selected: usize },
+        Checkbox { checked: bool },
+    }
+
+    let mut states: Vec<ItemState> = Vec::with_capacity(doc.items.len());
+    let mut focusables: Vec<usize> = vec![];
+
+    for (i, it) in doc.items.iter().enumerate() {
+        let st = match it {
+            UiItem::Text { .. } => ItemState::Static,
+            UiItem::Button { .. } => {
+                focusables.push(i);
+                ItemState::Button
+            }
+            UiItem::Input { value, .. } => {
+                focusables.push(i);
+                ItemState::Input { value: value.clone() }
+            }
+            UiItem::Select { options, .. } => {
+                focusables.push(i);
+                ItemState::Select { options: options.clone(), selected: 0 }
+            }
+            UiItem::Checkbox { checked, .. } => {
+                focusables.push(i);
+                ItemState::Checkbox { checked: *checked }
+            }
+        };
+        states.push(st);
+    }
+
+    let mut focus_pos: usize = 0;
+    let mut status = String::from("Tab: focus | Enter: activate | Space: toggle | q: quit");
 
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -147,92 +194,122 @@ fn run_tui(doc: UiDoc) -> Result<(), Box<dyn std::error::Error>> {
     let backend = ratatui::backend::CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Extract inputs for editing
-    let mut inputs: Vec<(usize, String)> = vec![]; // (item index, current value)
-    for (i, it) in doc.items.iter().enumerate() {
-        if let UiItem::Input { value, .. } = it {
-            inputs.push((i, value.clone()));
-        }
-    }
-    let mut focus_input: Option<usize> = if inputs.is_empty() { None } else { Some(0) };
-    let mut status = String::from("Press Tab to change focus, Enter on buttons, q to quit.");
+    let cleanup = || -> Result<(), Box<dyn std::error::Error>> {
+        disable_raw_mode()?;
+        execute!(std::io::stdout(), LeaveAlternateScreen)?;
+        Ok(())
+    };
 
     loop {
         terminal.draw(|f| {
-            let size = f.area();
+            let area = f.area();
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(3),
-                    Constraint::Min(1),
-                    Constraint::Length(2),
-                ])
-                .split(size);
+                .margin(1)
+                .constraints([Constraint::Length(2), Constraint::Min(1), Constraint::Length(2)].as_ref())
+                .split(area);
 
-            let title = Paragraph::new(doc.title.clone())
-                .block(Block::default().borders(Borders::ALL).title("Flux UI"));
+            let title = Paragraph::new(doc.title.as_str())
+                .style(Style::default().add_modifier(Modifier::BOLD));
             f.render_widget(title, chunks[0]);
 
-            let mut lines: Vec<Line> = Vec::new();
+            let mut lines: Vec<Line> = vec![];
 
-            // Build display lines
-            let mut input_cursor = 0usize;
-            for (i, it) in doc.items.iter().enumerate() {
-                match it {
-                    UiItem::Text { text } => {
-                        lines.push(Line::from(text.clone()));
+            for (i, item) in doc.items.iter().enumerate() {
+                let focused = focusables.get(focus_pos).copied() == Some(i);
+                let prefix = if focused { "➤ " } else { "  " };
+
+                let line = match (item, &states[i]) {
+                    (UiItem::Text { text }, _) => Line::from(format!("{prefix}{text}")),
+                    (UiItem::Button { label }, _) => {
+                        let mut s = format!("{prefix}[ {label} ]");
+                        if focused { s.push_str("  (Enter)"); }
+                        Line::from(s)
                     }
-                    UiItem::Button { label } => {
-                        lines.push(Line::from(format!("[ {label} ]")));
+                    (UiItem::Input { label, .. }, ItemState::Input { value }) => {
+                        let mut s = format!("{prefix}{label}: {value}");
+                        if focused { s.push_str("  (type)"); }
+                        Line::from(s)
                     }
-                    UiItem::Input { label, .. } => {
-                        let current_val = inputs.get(input_cursor).map(|x| x.1.clone()).unwrap_or_default();
-                        let focused = focus_input == Some(input_cursor);
-                        let prefix = if focused { "> " } else { "  " };
-                        lines.push(Line::from(format!("{prefix}{label}: {current_val}")));
-                        input_cursor += 1;
+                    (UiItem::Select { label, .. }, ItemState::Select { options, selected }) => {
+                        let cur = options.get(*selected).cloned().unwrap_or_else(|| "".to_string());
+                        let mut s = format!("{prefix}{label}: <{cur}>");
+                        if focused { s.push_str("  (←/→)"); }
+                        Line::from(s)
                     }
-                }
+                    (UiItem::Checkbox { label, .. }, ItemState::Checkbox { checked }) => {
+                        let mark = if *checked { "[x]" } else { "[ ]" };
+                        let mut s = format!("{prefix}{mark} {label}");
+                        if focused { s.push_str("  (Space)"); }
+                        Line::from(s)
+                    }
+                    _ => Line::from(format!("{prefix}<unknown>")),
+                };
+
+                lines.push(line);
             }
 
-            let list = Paragraph::new(Text::from(lines))
-                .block(Block::default().borders(Borders::ALL).title("Screen"));
+            let list = Paragraph::new(lines)
+                .wrap(Wrap { trim: false })
+                .block(Block::default().borders(Borders::ALL).title("UI"));
             f.render_widget(list, chunks[1]);
 
-            let status_p = Paragraph::new(status.clone())
+            let status_p = Paragraph::new(status.as_str())
                 .block(Block::default().borders(Borders::ALL).title("Status"));
             f.render_widget(status_p, chunks[2]);
         })?;
 
-        if event::poll(std::time::Duration::from_millis(16))? {
-            if let Event::Key(k) = event::read()? {
-                if k.kind != KeyEventKind::Press { continue; }
+        if event::poll(std::time::Duration::from_millis(50))? {
+            if let Event::Key(key) = event::read()? {
+                if key.kind != KeyEventKind::Press {
+                    continue;
+                }
 
-                match k.code {
-                    KeyCode::Char('q') | KeyCode::Esc => break,
+                match key.code {
+                    KeyCode::Char('q') => { cleanup()?; return Ok(()); }
                     KeyCode::Tab => {
-                        if let Some(fi) = focus_input {
-                            if inputs.is_empty() { focus_input = None; }
-                            else { focus_input = Some((fi + 1) % inputs.len()); }
-                        } else if !inputs.is_empty() {
-                            focus_input = Some(0);
+                        if !focusables.is_empty() {
+                            focus_pos = (focus_pos + 1) % focusables.len();
                         }
                     }
-                    KeyCode::Backspace => {
-                        if let Some(fi) = focus_input {
-                            if let Some((_idx, val)) = inputs.get_mut(fi) {
-                                val.pop();
-                            }
+                    KeyCode::BackTab => {
+                        if !focusables.is_empty() {
+                            focus_pos = (focus_pos + focusables.len() - 1) % focusables.len();
                         }
                     }
-                    KeyCode::Enter => {
-                        status = "Enter pressed (callbacks not implemented yet).".to_string();
+                    _ => {}
+                }
+
+                if focusables.is_empty() { continue; }
+                let idx = focusables[focus_pos];
+
+                match (&doc.items[idx], &mut states[idx], key.code) {
+                    (UiItem::Button { label }, ItemState::Button, KeyCode::Enter) => {
+                        status = format!("Clicked '{label}' (callbacks not implemented).");
                     }
-                    KeyCode::Char(c) => {
-                        if let Some(fi) = focus_input {
-                            if let Some((_idx, val)) = inputs.get_mut(fi) {
-                                val.push(c);
-                            }
+                    (UiItem::Checkbox { label, .. }, ItemState::Checkbox { checked }, KeyCode::Char(' ')) => {
+                        *checked = !*checked;
+                        status = format!("{label}: {}", if *checked { "true" } else { "false" });
+                    }
+                    (UiItem::Select { label, .. }, ItemState::Select { options, selected }, KeyCode::Left) => {
+                        if !options.is_empty() {
+                            *selected = (*selected + options.len() - 1) % options.len();
+                            status = format!("{label}: {}", options[*selected]);
+                        }
+                    }
+                    (UiItem::Select { label, .. }, ItemState::Select { options, selected }, KeyCode::Right) => {
+                        if !options.is_empty() {
+                            *selected = (*selected + 1) % options.len();
+                            status = format!("{label}: {}", options[*selected]);
+                        }
+                    }
+                    (UiItem::Input { .. }, ItemState::Input { value }, KeyCode::Backspace) => {
+                        value.pop();
+                    }
+                    (UiItem::Input { .. }, ItemState::Input { value }, KeyCode::Char(c)) => {
+                        // basic text entry (ignore ctrl shortcuts)
+                        if !key.modifiers.contains(KeyModifiers::CONTROL) {
+                            value.push(c);
                         }
                     }
                     _ => {}
@@ -240,15 +317,8 @@ fn run_tui(doc: UiDoc) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
-
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
-    Ok(())
 }
 
-// -------------------- Window UI (egui) --------------------
 
 fn run_window(doc: UiDoc) -> Result<(), Box<dyn std::error::Error>> {
     #[derive(Default)]
@@ -256,6 +326,8 @@ fn run_window(doc: UiDoc) -> Result<(), Box<dyn std::error::Error>> {
         doc: Option<UiDoc>,
         // store current editable values for inputs by index
         input_values: std::collections::HashMap<usize, String>,
+        select_values: std::collections::HashMap<usize, usize>,
+        checkbox_values: std::collections::HashMap<usize, bool>,
         status: String,
     }
 
@@ -281,6 +353,23 @@ fn run_window(doc: UiDoc) -> Result<(), Box<dyn std::error::Error>> {
                                 ui.label(label);
                                 ui.text_edit_singleline(entry);
                             });
+                        }
+                        UiItem::Select { label, options } => {
+                            let sel = self.select_values.entry(i).or_insert(0usize);
+                            ui.horizontal(|ui| {
+                                ui.label(label);
+                                egui::ComboBox::from_id_source(i)
+                                    .selected_text(options.get(*sel).cloned().unwrap_or_else(|| "<none>".to_string()))
+                                    .show_ui(ui, |ui| {
+                                        for (j, opt) in options.iter().enumerate() {
+                                            ui.selectable_value(sel, j, opt);
+                                        }
+                                    });
+                            });
+                        }
+                        UiItem::Checkbox { label, checked } => {
+                            let v = self.checkbox_values.entry(i).or_insert(*checked);
+                            ui.checkbox(v, label);
                         }
                     }
                 }

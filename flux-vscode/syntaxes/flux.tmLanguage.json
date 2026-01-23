@@ -2,12 +2,24 @@
   "scopeName": "source.flux",
   "name": "Flux",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#keywords" },
-    { "include": "#numbers" },
-    { "include": "#ui" },
-    { "include": "#identifiers" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#ui"
+    },
+    {
+      "include": "#identifiers"
+    }
   ],
   "repository": {
     "comments": {
@@ -37,7 +49,7 @@
       "patterns": [
         {
           "name": "keyword.control.flux",
-          "match": "\\b(let|print|nil)\\b"
+          "match": "\\b(let|print|if|else|while|and|or|true|false|nil)\\b"
         }
       ]
     },
@@ -49,7 +61,7 @@
         },
         {
           "name": "entity.name.function.ui.flux",
-          "match": "\\b(init|text|input|button|run)\\b"
+          "match": "\\b(init|title|clear|text|input|button|select|checkbox|run)\\b"
         }
       ]
     },
