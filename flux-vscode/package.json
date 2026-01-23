@@ -38,8 +38,7 @@
     ]
   },
   "scripts": {
-    "build": "npm run build -w client && npm run build -w server",
-    "watch": "npm run watch -w client & npm run watch -w server",
-    "package": "npm run build"
+    "build": "tsc -p client && tsc -p server",
+    "watch": "tsc -watch -p client & tsc -watch -p server"
   }
 }
