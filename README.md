@@ -1,0 +1,1 @@
+This the source code for the programming language Flux, it also contains CMakeLists so you can build it from source! (cargo build --release)
