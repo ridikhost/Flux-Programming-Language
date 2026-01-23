@@ -41,9 +41,5 @@
     "build": "npm run build -w client && npm run build -w server",
     "watch": "npm run watch -w client & npm run watch -w server",
     "package": "npm run build"
-  },
-  "workspaces": [
-    "client",
-    "server"
-  ]
+  }
 }
