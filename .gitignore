@@ -2,3 +2,4 @@ target/
 flux.iss
 flux.exe
 dist/
+test.fl
