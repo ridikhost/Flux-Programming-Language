@@ -105,8 +105,21 @@ function validate(doc) {
         // Track parentheses balance across file (outside strings)
         parenBalance += countCharOutsideStrings(line, "(");
         parenBalance -= countCharOutsideStrings(line, ")");
-        // Flux v1.0.0 statements are expected to end with ';'
-        // (UI statements also end with ';')
+        // Flux v1.0.1:
+        // - Block headers can end with '{' (if/while/else and plain blocks)
+        // - Standalone '}' is valid
+        // - Everything else generally ends with ';'
+        const isBlockish = trimmed.endsWith("{") ||
+            trimmed === "}" ||
+            trimmed.startsWith("if ") ||
+            trimmed.startsWith("if(") ||
+            trimmed.startsWith("while ") ||
+            trimmed.startsWith("while(") ||
+            trimmed === "else" ||
+            trimmed.startsWith("else ");
+        if (isBlockish) {
+            continue;
+        }
         if (!trimmed.endsWith(";")) {
             diags.push(diag(i, 0, Math.max(1, raw.length), "Missing ';' at end of statement"));
             continue;
