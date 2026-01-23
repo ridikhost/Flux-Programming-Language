@@ -1,0 +1,48 @@
+{
+  "name": "flux-lang",
+  "displayName": "Flux Language Support",
+  "description": "Syntax highlighting + diagnostics for Flux (.fl) - v1.0.0",
+  "version": "0.0.1",
+  "publisher": "DavidTheD3veloper",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:flux"
+  ],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "flux",
+        "aliases": [
+          "Flux",
+          "flux"
+        ],
+        "extensions": [
+          ".fl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "flux",
+        "scopeName": "source.flux",
+        "path": "./syntaxes/flux.tmLanguage.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "npm run build -w client && npm run build -w server",
+    "watch": "npm run watch -w client & npm run watch -w server",
+    "package": "npm run build"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ]
+}

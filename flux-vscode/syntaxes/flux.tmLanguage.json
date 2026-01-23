@@ -1,0 +1,73 @@
+{
+  "scopeName": "source.flux",
+  "name": "Flux",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#ui" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.flux",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.flux",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.flux",
+              "match": "\\\\(n|t|r|\"|\\\\)"
+            }
+          ]
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.flux",
+          "match": "\\b(let|print|nil)\\b"
+        }
+      ]
+    },
+    "ui": {
+      "patterns": [
+        {
+          "name": "support.function.ui.flux",
+          "match": "\\bui\\b"
+        },
+        {
+          "name": "entity.name.function.ui.flux",
+          "match": "\\b(init|text|input|button|run)\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.flux",
+          "match": "\\b\\d+(?:\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "name": "variable.other.flux",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+        }
+      ]
+    }
+  }
+}
