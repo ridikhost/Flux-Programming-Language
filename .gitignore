@@ -1,4 +1,4 @@
-
+*.vsix
 target/
 flux.iss
 flux.exe
