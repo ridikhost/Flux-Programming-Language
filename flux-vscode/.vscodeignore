@@ -1,0 +1,14 @@
+**/node_modules/**
+**/client/**
+**/server/**
+**/.vscode/**
+**/*.ts
+**/*.map
+
+!out/**
+!syntaxes/**
+!language-configuration.json
+!package.json
+!README.md
+!LICENSE*
+!icon.png
