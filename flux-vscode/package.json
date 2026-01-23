@@ -10,7 +10,7 @@
   "categories": [
     "Programming Languages"
   ],
-  "icon": "icon.png",
+  "icon": "extension/icon.png",
   "activationEvents": [
     "onLanguage:flux"
   ],
